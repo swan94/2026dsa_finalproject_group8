@@ -1,0 +1,1274 @@
+---
+title: "Final Project - Data Engineering"
+author: "Samantha Wan"
+format: html
+editor: visual
+---
+
+## Introduction
+
+This script prepares the data for the final project for machine learning.
+
+### Goals
+
+-   Inspection of the structure and contents of the training and testing files
+-   Cleaning of inconsistencies between files, including standardization of site names and previous crop labels
+-   Evaluate and manage missing data
+-   Add external data from Daymet
+-   Merge trait, metadata, and soil data into usable files for modeling in both training and testing sets
+-   Export cleaned and organized files to support partner's modeling workflow
+-   Document each major data engineering and merging step for reproducibility
+
+## Setup
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(janitor)
+library(lubridate)
+```
+
+```{r}
+# Directories
+
+# Detect raw data folders and output folder based on working directory
+data_dir <- case_when(
+  dir.exists("data") ~ "data",
+  dir.exists("../data") ~ "../data",
+  TRUE ~ "."
+)
+
+training_dir <- file.path(data_dir, "training")
+testing_dir  <- file.path(data_dir, "testing")
+
+output_dir <- case_when(
+  dir.exists("output") ~ "output",
+  dir.exists("../output") ~ "../output",
+  TRUE ~ "output"
+)
+
+dir.create(output_dir, showWarnings = FALSE)
+```
+
+## Reading Data
+
+```{r}
+# Read data paths
+
+# File Paths for training and testing inputs
+training_trait_file <- file.path(training_dir, "training_trait.csv")
+training_meta_file  <- file.path(training_dir, "training_meta.csv")
+training_soil_file  <- file.path(training_dir, "training_soil.csv")
+
+testing_meta_file   <- file.path(testing_dir, "testing_meta.csv")
+testing_soil_file   <- file.path(testing_dir, "testing_soil.csv")
+testing_sub_file    <- file.path(testing_dir, "testing_submission.csv")
+```
+
+```{r}
+# Read files
+training_trait_raw <- read_csv(training_trait_file, show_col_types = FALSE)
+training_meta_raw  <- read_csv(training_meta_file, show_col_types = FALSE)
+training_soil_raw  <- read_csv(training_soil_file, show_col_types = FALSE)
+
+testing_meta_raw   <- read_csv(testing_meta_file, show_col_types = FALSE)
+testing_soil_raw   <- read_csv(testing_soil_file, show_col_types = FALSE)
+testing_sub_raw    <- read_csv(testing_sub_file, show_col_types = FALSE)
+```
+
+## Exploratory Data Analysis (EDA)
+
+```{r}
+# glimpse
+glimpse(training_trait_raw)
+glimpse(training_meta_raw)
+glimpse(training_soil_raw)
+glimpse(testing_meta_raw)
+glimpse(testing_soil_raw)
+glimpse(testing_sub_raw)
+```
+
+```{r}
+# Dimensions
+tribble(
+  ~file, ~rows, ~cols,
+  "training_trait", nrow(training_trait_raw), ncol(training_trait_raw),
+  "training_meta",  nrow(training_meta_raw),  ncol(training_meta_raw),
+  "training_soil",  nrow(training_soil_raw),  ncol(training_soil_raw),
+  "testing_meta",   nrow(testing_meta_raw),   ncol(testing_meta_raw),
+  "testing_soil",   nrow(testing_soil_raw),   ncol(testing_soil_raw),
+  "testing_submission", nrow(testing_sub_raw), ncol(testing_sub_raw)
+)
+```
+
+```{r}
+# Check for missingness
+list(
+  training_trait = colSums(is.na(training_trait_raw)),
+  training_meta  = colSums(is.na(training_meta_raw)),
+  training_soil  = colSums(is.na(training_soil_raw)),
+  testing_meta   = colSums(is.na(testing_meta_raw)),
+  testing_soil   = colSums(is.na(testing_soil_raw)),
+  testing_sub    = colSums(is.na(testing_sub_raw))
+)
+```
+
+## Helper Functions
+
+These helper functions apply the same cleaning rules across training and testing files so that site names, crop labels, and summary calculations are consistent before merging.
+
+```{r}
+# Standardize site names across files
+clean_site <- function(x) {
+  x %>%
+    str_squish() %>% # removes extra spaces at the beginning and end
+    str_replace("_\\d{4}$", "") %>%       # remove _2018 style suffix from soil files
+    str_replace("^IAH1[a-c]$", "IAH1") %>% # naming consistency
+    str_replace("^TXH1-\\s+", "TXH1-") %>% # naming consistency
+    str_replace("^MOH1-\\s*rep\\s*[12]$", "MOH1") %>% # naming consistency
+    str_replace("^MOH1_[12]$", "MOH1") # naming consistency
+}
+
+# Standardize previous crop labels
+clean_previous_crop <- function(x) {
+  x <- x %>%
+    str_squish() %>%
+    str_to_lower() %>%
+    na_if("")
+
+  case_when(
+    x == "soybeans" ~ "soybean", # naming standardization for previous crop planted
+    x == "winter wheat" ~ "wheat", # naming standardization for previous crop planted
+    TRUE ~ x
+  ) %>%
+    str_to_title()
+}
+
+# Mean that returns NA if all values are missing
+mean_na <- function(x) {
+  if (all(is.na(x))) { 
+    NA_real_   # If all values are missing, it returns NA, otherwise it will calculate the mean and ignore missing values
+  } else {
+    mean(x, na.rm = TRUE)
+  }
+}
+
+# Character mode that returns NA if all values are missing
+mode_chr <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(NA_character_) # Removes missing values
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Minimum date that returns NA if all values are missing
+min_date_na <- function(x) {
+  if (all(is.na(x))) {
+    as.Date(NA)
+  } else {
+    min(x, na.rm = TRUE)
+  }
+}
+
+# Maximum date that returns NA if all values are missing
+max_date_na <- function(x) {
+  if (all(is.na(x))) {
+    as.Date(NA)
+  } else {
+    max(x, na.rm = TRUE)
+  }
+}
+```
+
+## 1) Clean Internal Files
+
+### a. Trait Data
+
+```{r}
+# Trait cleaning
+training_trait_clean <- training_trait_raw %>%
+  clean_names() %>%
+  mutate(
+    site = clean_site(site),
+    date_planted = mdy(date_planted),
+    date_harvested = mdy(date_harvested)
+  )
+
+training_trait_clean
+```
+
+```{r}
+# Trait aggregation (one row per year-site-hybrid instead of multiple plot level rows)
+training_trait_agg <- training_trait_clean %>%
+  group_by(year, site, hybrid) %>%
+  summarise(
+    n_plots = n(),
+    yield_mg_ha = mean(yield_mg_ha, na.rm = TRUE),
+    yield_sd = sd(yield_mg_ha, na.rm = TRUE),
+    grain_moisture = mean(grain_moisture, na.rm = TRUE),
+    date_planted = min_date_na(date_planted),
+    date_harvested = max_date_na(date_harvested),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    season_length_days = as.numeric(date_harvested - date_planted)
+  )
+```
+
+### b. Metadata
+
+Standardization of site and previous crop labels plus collapsing duplicate year-site rows.
+
+```{r}
+# Meta clean
+training_meta_clean <- training_meta_raw %>%
+  clean_names() %>%
+  mutate(
+    site = clean_site(site),
+    previous_crop = clean_previous_crop(previous_crop)
+  ) %>%
+  group_by(year, site) %>%
+  summarise(
+    previous_crop = mode_chr(previous_crop),
+    longitude = mean_na(longitude),
+    latitude = mean_na(latitude),
+    .groups = "drop"
+  )
+
+testing_meta_clean <- testing_meta_raw %>%
+  clean_names() %>%
+  mutate(
+    site = clean_site(site),
+    previous_crop = clean_previous_crop(previous_crop)
+  ) %>%
+  group_by(year, site) %>%
+  summarise(
+    previous_crop = mode_chr(previous_crop),
+    longitude = mean_na(longitude),
+    latitude = mean_na(latitude),
+    .groups = "drop"
+  )
+
+training_meta_clean
+testing_meta_clean
+```
+
+### c. Soil Data
+
+For the soil files the values are stored as 'GAH1_2024' so we will remove the year and then average the duplicate year-site rows.
+
+```{r}
+# Soil clean
+training_soil_clean <- training_soil_raw %>%
+  clean_names() %>%
+  mutate(
+    site = clean_site(site)
+  ) %>%
+  group_by(year, site) %>%
+  summarise(
+    soilp_h   = mean_na(soilp_h), # clean_names function changed soilpH to soilp_h (this should be fine, just wanted to make note if there is any confusion later)
+    om_pct    = mean_na(om_pct),
+    soilk_ppm = mean_na(soilk_ppm),
+    soilp_ppm = mean_na(soilp_ppm),
+    .groups = "drop"
+  )
+
+testing_soil_clean <- testing_soil_raw %>%
+  clean_names() %>%
+  mutate(
+    site = clean_site(site)
+  ) %>%
+  group_by(year, site) %>%
+  summarise(
+    soilp_h   = mean_na(soilp_h),
+    om_pct    = mean_na(om_pct),
+    soilk_ppm = mean_na(soilk_ppm),
+    soilp_ppm = mean_na(soilp_ppm),
+    .groups = "drop"
+  )
+
+training_soil_clean
+testing_soil_clean
+```
+
+### d. Submission Template
+
+```{r}
+# Submission clean
+testing_sub_clean <- testing_sub_raw %>%
+  clean_names() %>%
+  mutate(site = clean_site(site))
+
+testing_sub_clean
+```
+
+## 2) Merging Internal Training and Testing Data
+
+### a. Base Training Data
+
+This is the main modeling data set built only from the provided internal project files.
+
+```{r}
+# Base training 
+training_model_base <- training_trait_agg %>%
+  select(year, site, hybrid, yield_mg_ha, n_plots) %>%
+  left_join(training_meta_clean, by = c("year", "site")) %>%
+  left_join(training_soil_clean, by = c("year", "site"))
+
+training_model_base
+```
+
+### b. Base Testing Data
+
+This is the main modeling data set built only from the provided internal project files.
+
+```{r}
+# Base Testing
+testing_model_base <- testing_sub_clean %>%
+  select(year, site, hybrid, yield_mg_ha) %>%
+  left_join(testing_meta_clean, by = c("year", "site")) %>%
+  left_join(testing_soil_clean, by = c("year", "site"))
+
+testing_model_base
+names(testing_model_base)
+```
+
+### c. Predictor-Ready Internal Train/Test Files
+
+Only keeping predictors available in both sets.
+
+```{r}
+training_model_core <- training_model_base %>%
+  select(
+    year, site, hybrid, yield_mg_ha, n_plots,
+    previous_crop, longitude, latitude,
+    soilp_h, om_pct, soilk_ppm, soilp_ppm
+  )
+
+testing_model_core <- testing_model_base %>%
+  select(
+    year, site, hybrid, yield_mg_ha,
+    previous_crop, longitude, latitude,
+    soilp_h, om_pct, soilk_ppm, soilp_ppm
+  )
+
+training_model_core
+testing_model_core
+```
+
+## 3) Merge Checks
+
+These are checks to confirm which site-years still have missing joins after the cleaning.
+
+```{r}
+# Merge Check Training
+train_missing_meta <- training_model_base %>%
+  filter(is.na(longitude) | is.na(latitude)) %>%
+  distinct(year, site)
+
+train_missing_soil <- training_model_base %>%
+  filter(is.na(soilp_h) | is.na(om_pct) | is.na(soilk_ppm) | is.na(soilp_ppm)) %>%
+  distinct(year, site)
+
+train_missing_meta
+train_missing_soil
+```
+
+```{r}
+# Merge Check Testing
+test_missing_meta <- testing_model_base %>%
+  filter(is.na(longitude) | is.na(latitude)) %>%
+  distinct(year, site)
+
+test_missing_soil <- testing_model_base %>%
+  filter(is.na(soilp_h) | is.na(om_pct) | is.na(soilk_ppm) | is.na(soilp_ppm)) %>%
+  distinct(year, site)
+
+test_missing_meta
+test_missing_soil
+```
+
+```{r}
+# Row Checks (These should both be TRUE)
+nrow(training_model_base) == nrow(training_trait_agg)
+nrow(testing_model_base) == nrow(testing_sub_clean)
+```
+
+## 4) Additional Diagnostic Check
+
+Comparing previous_crop categories (a categorical predictor since earlier EDAs looked into numeric predictors) in the training and testing sets.
+
+```{r}
+training_model_base %>%
+  count(previous_crop, sort = TRUE)
+
+testing_model_base %>%
+  count(previous_crop, sort = TRUE)
+```
+
+The diagnostic check shows that previous_crop has been cleaned properly and we have consistent naming with manageable categories. Soybeans seem to be the dominant type of previous crop but previous_crop may be suitable to use for modeling. Missing values should be handled consistently when fitting the final model.
+
+## 5) Site-Year Lookup for Open-Source Data
+
+This is a table that can be used to pull weather data one time and then merge it back into the internal files.
+
+```{r}
+# Site-Year Lookup
+site_year_lookup <- bind_rows(
+  training_model_base %>%
+    distinct(year, site, longitude, latitude),
+  testing_model_base %>%
+    distinct(year, site, longitude, latitude)
+) %>%
+  distinct() %>%
+  drop_na(longitude, latitude) %>%
+  arrange(year, site)
+
+site_year_lookup
+```
+
+## 6) Daymet Weather Pull
+
+### a. Yearly Weather Summaries
+
+This section will create one row per site-year with annual weather summaries.
+
+```{r}
+#| message: false
+#| warning: false
+
+# Load package
+library(daymetr)
+
+pull_daymet_yearly <- function(.site, .lat, .lon, .year) {
+  tryCatch({
+    daymet_data <- download_daymet(
+      site = .site,
+      lat = .lat,
+      lon = .lon,
+      start = .year,
+      end = .year,
+      internal = TRUE,
+      silent = TRUE
+    )
+
+    daymet_data$data %>%
+      as_tibble() %>%
+      summarise(
+        dayl_s_mean   = mean(dayl..s., na.rm = TRUE),
+        prcp_mm_total = sum(prcp..mm.day., na.rm = TRUE),
+        srad_wm2_mean = mean(srad..W.m.2., na.rm = TRUE),
+        tmax_c_mean   = mean(tmax..deg.c., na.rm = TRUE),
+        tmin_c_mean   = mean(tmin..deg.c., na.rm = TRUE),
+        vp_pa_mean    = mean(vp..Pa., na.rm = TRUE),
+        swe_kgm2_mean = mean(swe..kg.m.2., na.rm = TRUE)
+      )
+  }, error = function(e) {
+    tibble(
+      dayl_s_mean   = NA_real_,
+      prcp_mm_total = NA_real_,
+      srad_wm2_mean = NA_real_,
+      tmax_c_mean   = NA_real_,
+      tmin_c_mean   = NA_real_,
+      vp_pa_mean    = NA_real_,
+      swe_kgm2_mean = NA_real_
+    )
+  })
+}
+
+weather_yearly <- site_year_lookup %>%
+  mutate(
+    weather = pmap(
+      list(site, latitude, longitude, year),
+      function(site, latitude, longitude, year) {
+        pull_daymet_yearly(site, latitude, longitude, year)
+      }
+    )
+  ) %>%
+  unnest(weather)
+
+weather_yearly
+```
+
+### b. Monthly Weather Engineering
+
+The section below follows a month-summary workflow (similar to what we did in class).
+
+```{r}
+pull_daymet_daily <- function(.site, .lat, .lon, .year) {
+  tryCatch({
+    daymet_data <- download_daymet(
+      site = .site,
+      lat = .lat,
+      lon = .lon,
+      start = .year,
+      end = .year,
+      internal = TRUE,
+      silent = TRUE
+    )
+
+    daymet_data$data %>%
+      as_tibble() %>%
+      select(-any_of(c("site", "year")))
+  }, error = function(e) {
+    tibble(
+      yday = NA_real_,
+      dayl..s. = NA_real_,
+      prcp..mm.day. = NA_real_,
+      srad..W.m.2. = NA_real_,
+      swe..kg.m.2. = NA_real_,
+      tmax..deg.c. = NA_real_,
+      tmin..deg.c. = NA_real_,
+      vp..Pa. = NA_real_
+    )
+  })
+}
+
+daymet_daily <- site_year_lookup %>%
+  mutate(
+    weather = pmap(
+      list(site, latitude, longitude, year),
+      function(site, latitude, longitude, year) {
+        pull_daymet_daily(site, latitude, longitude, year)
+      }
+    )
+  ) %>%
+  unnest(weather) %>%
+  clean_names() %>%
+  mutate(
+    date = as.Date(paste(year, yday, sep = "-"), "%Y-%j"),
+    month = month(date),
+    month_abb = month(date, label = TRUE, abbr = TRUE)
+  )
+
+daymet_daily
+```
+
+### c. Monthly Summaries
+
+```{r}
+daymet_month_sum <- daymet_daily %>%
+  group_by(year, site, month_abb) %>%
+  summarise(
+    across(
+      .cols = c(dayl_s, srad_w_m_2, tmax_deg_c, tmin_deg_c, vp_pa),
+      .fns = mean,
+      .names = "mean_{.col}"
+    ),
+    across(
+      .cols = c(prcp_mm_day, swe_kg_m_2),
+      .fns = sum,
+      .names = "sum_{.col}"
+    ),
+    .groups = "drop"
+  )
+
+daymet_month_sum
+```
+
+### d. Monthly Wide File
+
+```{r}
+daymet_month_sum_wide <- daymet_month_sum %>%
+  pivot_longer(mean_dayl_s:sum_swe_kg_m_2,
+               names_to = "name",
+               values_to = "value") %>%
+  mutate(varname = paste0(name, "_", month_abb)) %>%
+  select(-name, -month_abb) %>%
+  pivot_wider(names_from = varname,
+              values_from = value)
+
+daymet_month_sum_wide
+```
+
+### e. Training Only Growing Season Weather
+
+Since we only have the planting and harvesting dates for the training set, we can also create training-only weather summaries over the observed growing period. These are just exploratory or training-only features.
+
+```{r}
+# Training-only growing season weather
+training_site_year_dates <- training_trait_agg %>%
+  group_by(year, site) %>%
+  summarise(
+    date_planted = if (all(is.na(date_planted))) as.Date(NA) else min(date_planted, na.rm = TRUE),
+    date_harvested = if (all(is.na(date_harvested))) as.Date(NA) else max(date_harvested, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    training_meta_clean %>% distinct(year, site, longitude, latitude),
+    by = c("year", "site")
+  ) %>%
+  filter(!is.na(date_planted), !is.na(date_harvested)) %>%
+  drop_na(longitude, latitude)
+
+pull_daymet_growing_season <- function(.site, .lat, .lon, .year, .plant, .harvest) {
+  tryCatch({
+    daymet_data <- download_daymet(
+      site = .site,
+      lat = .lat,
+      lon = .lon,
+      start = .year,
+      end = .year,
+      internal = TRUE,
+      silent = TRUE
+    )
+
+    daymet_data$data %>%
+      as_tibble() %>%
+      select(-any_of(c("site", "year"))) %>%
+      clean_names() %>%
+      mutate(
+        date = as.Date(paste(.year, yday, sep = "-"), "%Y-%j")
+      ) %>%
+      filter(date >= .plant, date <= .harvest) %>%
+      summarise(
+        gs_dayl_s_mean = mean(dayl_s, na.rm = TRUE),
+        gs_prcp_mm_total = sum(prcp_mm_day, na.rm = TRUE),
+        gs_srad_w_m_2_mean = mean(srad_w_m_2, na.rm = TRUE),
+        gs_tmax_deg_c_mean = mean(tmax_deg_c, na.rm = TRUE),
+        gs_tmin_deg_c_mean = mean(tmin_deg_c, na.rm = TRUE),
+        gs_vp_pa_mean = mean(vp_pa, na.rm = TRUE),
+        gs_swe_kg_m_2_total = sum(swe_kg_m_2, na.rm = TRUE),
+        gs_n_days = n()
+      )
+  }, error = function(e) {
+    tibble(
+      gs_dayl_s_mean = NA_real_,
+      gs_prcp_mm_total = NA_real_,
+      gs_srad_w_m_2_mean = NA_real_,
+      gs_tmax_deg_c_mean = NA_real_,
+      gs_tmin_deg_c_mean = NA_real_,
+      gs_vp_pa_mean = NA_real_,
+      gs_swe_kg_m_2_total = NA_real_,
+      gs_n_days = NA_real_
+    )
+  })
+}
+
+training_weather_growing_season <- training_site_year_dates %>%
+  mutate(
+    weather = pmap(
+      list(site, latitude, longitude, year, date_planted, date_harvested),
+      function(site, latitude, longitude, year, date_planted, date_harvested) {
+        pull_daymet_growing_season(site, latitude, longitude, year, date_planted, date_harvested)
+      }
+    )
+  ) %>%
+  select(year, site, date_planted, date_harvested, weather) %>%
+  unnest(weather) %>%
+  distinct(year, site, .keep_all = TRUE)
+
+training_weather_growing_season
+```
+
+### f. Merging Weather into the Modeling Files
+
+Creation of partner-ready merged options plus one training-only growing-season file for models.
+
+```{r}
+training_model_yearly_weather <- training_model_core %>%
+  left_join(weather_yearly, by = c("year", "site"))
+
+testing_model_yearly_weather <- testing_model_core %>%
+  left_join(weather_yearly, by = c("year", "site"))
+
+training_model_monthly_weather <- training_model_core %>%
+  left_join(daymet_month_sum_wide, by = c("year", "site"))
+
+testing_model_monthly_weather <- testing_model_core %>%
+  left_join(daymet_month_sum_wide, by = c("year", "site"))
+
+training_model_growing_season_weather <- training_model_base %>%
+  left_join(training_weather_growing_season, by = c("year", "site"))
+```
+
+## 7) Exporting
+
+Exportation of clean files or partner to use without having to repeat all of the data wrangling steps.
+
+```{r}
+# Exportation of all potential outputs developed in this workflow
+
+# 1) Cleaned component files
+
+write_csv(training_trait_agg,
+          file.path(output_dir, "training_trait_agg.csv"))
+
+write_csv(training_meta_clean,
+          file.path(output_dir, "training_meta_clean.csv"))
+
+write_csv(training_soil_clean,
+          file.path(output_dir, "training_soil_clean.csv"))
+
+write_csv(testing_meta_clean,
+          file.path(output_dir, "testing_meta_clean.csv"))
+
+write_csv(testing_soil_clean,
+          file.path(output_dir, "testing_soil_clean.csv"))
+
+write_csv(testing_sub_clean,
+          file.path(output_dir, "testing_sub_clean.csv"))
+
+write_csv(site_year_lookup,
+          file.path(output_dir, "site_year_lookup.csv"))
+
+# 2) Internal merged modeling files
+
+write_csv(training_model_base,
+          file.path(output_dir, "training_model_base.csv"))
+
+write_csv(testing_model_base,
+          file.path(output_dir, "testing_model_base.csv"))
+
+write_csv(training_model_core,
+          file.path(output_dir, "training_model_core.csv"))
+
+write_csv(testing_model_core,
+          file.path(output_dir, "testing_model_core.csv"))
+
+# 3) Daymet weather files
+
+write_csv(weather_yearly,
+          file.path(output_dir, "weather_yearly.csv"))
+
+write_csv(daymet_daily,
+          file.path(output_dir, "daymet_daily.csv"))
+
+write_csv(daymet_month_sum,
+          file.path(output_dir, "daymet_month_sum.csv"))
+
+write_csv(daymet_month_sum_wide,
+          file.path(output_dir, "daymet_month_sum_wide.csv"))
+
+# 4) Final merged modeling options with weather
+
+write_csv(training_model_yearly_weather,
+          file.path(output_dir, "training_model_yearly_weather.csv"))
+
+write_csv(testing_model_yearly_weather,
+          file.path(output_dir, "testing_model_yearly_weather.csv"))
+
+write_csv(training_model_monthly_weather,
+          file.path(output_dir, "training_model_monthly_weather.csv"))
+
+write_csv(testing_model_monthly_weather,
+          file.path(output_dir, "testing_model_monthly_weather.csv"))
+
+# 5) Training-only growing season files
+
+write_csv(training_site_year_dates,
+          file.path(output_dir, "training_site_year_dates.csv"))
+
+write_csv(training_weather_growing_season,
+          file.path(output_dir, "training_weather_growing_season.csv"))
+
+write_csv(training_model_growing_season_weather,
+          file.path(output_dir, "training_model_growing_season_weather.csv"))
+
+# 6) Final export check
+
+tibble(
+  file = list.files(output_dir),
+  size_bytes = file.info(file.path(output_dir, list.files(output_dir)))$size
+)
+```
+
+## 8) Clean and Align Final Modeling Datasets
+
+This portion will read the prebuilt model files, drop duplicate/redundant columns, remove all NA monthly columns, and align training and testing columns so they are ready for modeling.
+
+### a. Read in the Prebuilt Modeling Files
+
+```{r}
+# Set Folders
+
+data_dir <- "../output"
+output_dir <- "../output"
+
+dir.create(output_dir, showWarnings = FALSE)
+
+# Read in training datasets
+
+training_model_base <- read_csv(file.path(data_dir, "training_model_base.csv"), show_col_types = FALSE)
+training_model_core <- read_csv(file.path(data_dir, "training_model_core.csv"), show_col_types = FALSE)
+training_model_yearly_weather <- read_csv(file.path(data_dir, "training_model_yearly_weather.csv"), show_col_types = FALSE)
+training_model_monthly_weather <- read_csv(file.path(data_dir, "training_model_monthly_weather.csv"), show_col_types = FALSE)
+training_model_growing_season_weather <- read_csv(file.path(data_dir, "training_model_growing_season_weather.csv"), show_col_types = FALSE)
+
+# Read in testing datasets
+
+testing_model_base <- read_csv(file.path(data_dir, "testing_model_base.csv"), show_col_types = FALSE)
+testing_model_core <- read_csv(file.path(data_dir, "testing_model_core.csv"), show_col_types = FALSE)
+testing_model_yearly_weather <- read_csv(file.path(data_dir, "testing_model_yearly_weather.csv"), show_col_types = FALSE)
+testing_model_monthly_weather <- read_csv(file.path(data_dir, "testing_model_monthly_weather.csv"), show_col_types = FALSE)
+```
+
+### b. Create Helper Functions
+
+```{r}
+# Removal of duplicate join columns
+
+remove_join_duplicates <- function(df) {
+  y_cols <- names(df)[str_detect(names(df), "\\.y$")]
+  
+  for (y_col in y_cols) {
+    base_name <- str_remove(y_col, "\\.y$")
+    x_col <- paste0(base_name, ".x")
+    
+    if (x_col %in% names(df)) {
+      df[[y_col]] <- NULL
+    }
+  }
+  
+  names(df) <- str_replace(names(df), "\\.x$", "")
+  return(df)
+}
+
+remove_all_na_columns <- function(df) {
+  df %>% select(where(~ !all(is.na(.))))
+}
+
+move_response_first <- function(df, response_col = "yield_mg_ha") {
+  if (response_col %in% names(df)) {
+    df <- df %>% relocate(all_of(response_col))
+  }
+  return(df)
+}
+
+clean_model_dataset <- function(df, response_col = "yield_mg_ha") {
+  df %>%
+    remove_join_duplicates() %>%
+    remove_all_na_columns() %>%
+    clean_names() %>%
+    move_response_first(response_col = response_col)
+}
+
+align_train_test <- function(train_df, test_df, response_col = "yield_mg_ha") {
+  train_predictors <- setdiff(names(train_df), response_col)
+  test_predictors <- names(test_df)
+  
+  common_predictors <- intersect(train_predictors, test_predictors)
+  
+  train_out <- train_df %>%
+    select(any_of(c(response_col, common_predictors)))
+  
+  test_out <- test_df %>%
+    select(any_of(common_predictors))
+  
+  return(list(train = train_out, test = test_out))
+}
+```
+
+### c. Clean the Prebuilt Modeling Files
+
+```{r}
+training_model_base_clean <- clean_model_dataset(training_model_base)
+training_model_core_clean <- clean_model_dataset(training_model_core)
+training_model_yearly_weather_clean <- clean_model_dataset(training_model_yearly_weather)
+training_model_monthly_weather_clean <- clean_model_dataset(training_model_monthly_weather)
+training_model_growing_season_weather_clean <- clean_model_dataset(training_model_growing_season_weather)
+
+testing_model_base_clean <- clean_model_dataset(testing_model_base)
+testing_model_core_clean <- clean_model_dataset(testing_model_core)
+testing_model_yearly_weather_clean <- clean_model_dataset(testing_model_yearly_weather)
+testing_model_monthly_weather_clean <- clean_model_dataset(testing_model_monthly_weather)
+```
+
+### d. Align Training and Testing Dataset
+
+```{r}
+base_aligned <- align_train_test(
+  train_df = training_model_base_clean,
+  test_df = testing_model_base_clean
+)
+
+core_aligned <- align_train_test(
+  train_df = training_model_core_clean,
+  test_df = testing_model_core_clean
+)
+
+yearly_aligned <- align_train_test(
+  train_df = training_model_yearly_weather_clean,
+  test_df = testing_model_yearly_weather_clean
+)
+
+monthly_aligned <- align_train_test(
+  train_df = training_model_monthly_weather_clean,
+  test_df = testing_model_monthly_weather_clean
+)
+
+training_model_base_final <- base_aligned$train
+testing_model_base_final <- base_aligned$test
+
+training_model_core_final <- core_aligned$train
+testing_model_core_final <- core_aligned$test
+
+training_model_yearly_weather_final <- yearly_aligned$train
+testing_model_yearly_weather_final <- yearly_aligned$test
+
+training_model_monthly_weather_final <- monthly_aligned$train
+testing_model_monthly_weather_final <- monthly_aligned$test
+
+training_model_growing_season_weather_final <- training_model_growing_season_weather_clean
+```
+
+e.  Check Dataset Dimensions
+
+```{r}
+final_dataset_summary <- tibble(
+  dataset = c(
+    "training_model_base_final",
+    "testing_model_base_final",
+    "training_model_core_final",
+    "testing_model_core_final",
+    "training_model_yearly_weather_final",
+    "testing_model_yearly_weather_final",
+    "training_model_monthly_weather_final",
+    "testing_model_monthly_weather_final",
+    "training_model_growing_season_weather_final"
+  ),
+  nrow = c(
+    nrow(training_model_base_final),
+    nrow(testing_model_base_final),
+    nrow(training_model_core_final),
+    nrow(testing_model_core_final),
+    nrow(training_model_yearly_weather_final),
+    nrow(testing_model_yearly_weather_final),
+    nrow(training_model_monthly_weather_final),
+    nrow(testing_model_monthly_weather_final),
+    nrow(training_model_growing_season_weather_final)
+  ),
+  ncol = c(
+    ncol(training_model_base_final),
+    ncol(testing_model_base_final),
+    ncol(training_model_core_final),
+    ncol(testing_model_core_final),
+    ncol(training_model_yearly_weather_final),
+    ncol(testing_model_yearly_weather_final),
+    ncol(training_model_monthly_weather_final),
+    ncol(testing_model_monthly_weather_final),
+    ncol(training_model_growing_season_weather_final)
+  )
+)
+
+final_dataset_summary
+```
+
+### f. Check Predictor Matching
+
+```{r}
+cat("\nBase model predictor match: ",
+    setequal(setdiff(names(training_model_base_final), "yield_mg_ha"),
+             names(testing_model_base_final)),
+    "\n")
+
+cat("Core model predictor match: ",
+    setequal(setdiff(names(training_model_core_final), "yield_mg_ha"),
+             names(testing_model_core_final)),
+    "\n")
+
+cat("Yearly weather model predictor match: ",
+    setequal(setdiff(names(training_model_yearly_weather_final), "yield_mg_ha"),
+             names(testing_model_yearly_weather_final)),
+    "\n")
+
+cat("Monthly weather model predictor match: ",
+    setequal(setdiff(names(training_model_monthly_weather_final), "yield_mg_ha"),
+             names(testing_model_monthly_weather_final)),
+    "\n")
+```
+
+### g. Write Final Cleaned Modeling Files
+
+```{r}
+write_csv(training_model_base_final,
+          file.path(output_dir, "training_model_base_final.csv"))
+
+write_csv(testing_model_base_final,
+          file.path(output_dir, "testing_model_base_final.csv"))
+
+write_csv(training_model_core_final,
+          file.path(output_dir, "training_model_core_final.csv"))
+
+write_csv(testing_model_core_final,
+          file.path(output_dir, "testing_model_core_final.csv"))
+
+write_csv(training_model_yearly_weather_final,
+          file.path(output_dir, "training_model_yearly_weather_final.csv"))
+
+write_csv(testing_model_yearly_weather_final,
+          file.path(output_dir, "testing_model_yearly_weather_final.csv"))
+
+write_csv(training_model_monthly_weather_final,
+          file.path(output_dir, "training_model_monthly_weather_final.csv"))
+
+write_csv(testing_model_monthly_weather_final,
+          file.path(output_dir, "testing_model_monthly_weather_final.csv"))
+
+write_csv(training_model_growing_season_weather_final,
+          file.path(output_dir, "training_model_growing_season_weather_final.csv"))
+
+write_csv(final_dataset_summary,
+          file.path(output_dir, "final_dataset_summary.csv"))
+```
+
+```{r}
+# Organize output folder
+
+# Set output folder
+output_dir <- "../output"
+
+# Create subfolders
+dir.create(file.path(output_dir, "final_model_files"), showWarnings = FALSE)
+dir.create(file.path(output_dir, "weather_files"), showWarnings = FALSE)
+dir.create(file.path(output_dir, "metadata_files"), showWarnings = FALSE)
+dir.create(file.path(output_dir, "summary_files"), showWarnings = FALSE)
+dir.create(file.path(output_dir, "other_outputs"), showWarnings = FALSE)
+
+# Get all files currently in output
+output_files <- list.files(output_dir, full.names = TRUE)
+
+# Keep only files, not folders
+output_files <- output_files[file.info(output_files)$isdir == FALSE]
+
+# File names only
+file_names <- basename(output_files)
+
+# Define file groups
+
+final_model_files <- c(
+  "training_model_base_final.csv",
+  "testing_model_base_final.csv",
+  "training_model_core_final.csv",
+  "testing_model_core_final.csv",
+  "training_model_yearly_weather_final.csv",
+  "testing_model_yearly_weather_final.csv",
+  "training_model_monthly_weather_final.csv",
+  "testing_model_monthly_weather_final.csv",
+  "training_model_growing_season_weather_final.csv"
+)
+
+weather_files <- c(
+  "daymet_daily.csv",
+  "daymet_month_sum.csv",
+  "daymet_month_sum_wide.csv",
+  "weather_yearly.csv",
+  "training_weather_growing_season.csv",
+  "training_model_yearly_weather.csv",
+  "testing_model_yearly_weather.csv",
+  "training_model_monthly_weather.csv",
+  "testing_model_monthly_weather.csv",
+  "training_model_growing_season_weather.csv"
+)
+
+metadata_files <- c(
+  "training_meta_clean.csv",
+  "testing_meta_clean.csv",
+  "training_soil_clean.csv",
+  "testing_soil_clean.csv",
+  "training_trait_agg.csv",
+  "testing_sub_clean.csv",
+  "site_year_lookup.csv",
+  "training_site_year_dates.csv",
+  "training_model_base.csv",
+  "testing_model_base.csv",
+  "training_model_core.csv",
+  "testing_model_core.csv"
+)
+
+summary_files <- c(
+  "final_dataset_summary.csv",
+  "removed_columns_summary.csv"
+)
+
+# Helper function to move files if they exist
+
+move_files_to_folder <- function(file_list, destination_folder, base_dir) {
+  for (f in file_list) {
+    old_path <- file.path(base_dir, f)
+    new_path <- file.path(base_dir, destination_folder, f)
+    
+    if (file.exists(old_path)) {
+      file.rename(from = old_path, to = new_path)
+    }
+  }
+}
+
+# Move files into folders
+
+move_files_to_folder(final_model_files, "final_model_files", output_dir)
+move_files_to_folder(weather_files, "weather_files", output_dir)
+move_files_to_folder(metadata_files, "metadata_files", output_dir)
+move_files_to_folder(summary_files, "summary_files", output_dir)
+
+# Move any remaining files into "other_outputs"
+
+remaining_files <- list.files(output_dir, full.names = TRUE)
+remaining_files <- remaining_files[file.info(remaining_files)$isdir == FALSE]
+
+if (length(remaining_files) > 0) {
+  for (f in remaining_files) {
+    file.rename(
+      from = f,
+      to = file.path(output_dir, "other_outputs", basename(f))
+    )
+  }
+}
+
+# Print organized folder contents
+
+cat("\nFiles in final_model_files:\n")
+print(list.files(file.path(output_dir, "final_model_files")))
+
+cat("\nFiles in weather_files:\n")
+print(list.files(file.path(output_dir, "weather_files")))
+
+cat("\nFiles in metadata_files:\n")
+print(list.files(file.path(output_dir, "metadata_files")))
+
+cat("\nFiles in summary_files:\n")
+print(list.files(file.path(output_dir, "summary_files")))
+
+cat("\nFiles in other_outputs:\n")
+print(list.files(file.path(output_dir, "other_outputs")))
+```
+
+### h. Additional Chunk: Removed Columns Summary
+
+Summary of the columns that were removed from monthly-weather columns during the cleaning process.
+
+```{r}
+removed_training_monthly_cols <- setdiff(
+  names(training_model_monthly_weather),
+  names(training_model_monthly_weather_clean)
+)
+
+removed_testing_monthly_cols <- setdiff(
+  names(testing_model_monthly_weather),
+  names(testing_model_monthly_weather_clean)
+)
+
+removed_columns_summary <- tibble(
+  dataset = c(
+    rep("training_model_monthly_weather", length(removed_training_monthly_cols)),
+    rep("testing_model_monthly_weather", length(removed_testing_monthly_cols))
+  ),
+  removed_column = c(
+    removed_training_monthly_cols,
+    removed_testing_monthly_cols
+  )
+)
+
+removed_columns_summary
+
+write_csv(removed_columns_summary,
+          file.path(output_dir, "removed_columns_summary.csv"))
+```
+
+## 9) Summary
+
+### Overall Summary
+
+In summary, this data engineering workflow prepared the training and testing files that will be used in downstream machine learning by cleaning any inconsistencies among files, standardizing naming, summarizing trait data to the hybrid level, integrating metadata and soil information, and adding external weather features from Daymet. The process produces a set of organized, model-ready data sets with various components, including the base data sets, yearly weather data sets, monthly weather data sets, and growing-season weather files. The final training and testing data sets were cleaned, aligned (to make sure predictor columns matched), and exported into output folders so they could be used efficiently in the partner modeling workflow.
+
+### Output File Summary
+
+#### Final Model Files
+
+-   training_model_base_final.csv — final cleaned/aligned base training file
+
+-   testing_model_base_final.csv — final cleaned/aligned base testing file
+
+-   training_model_core_final.csv — final cleaned/aligned core training file
+
+-   testing_model_core_final.csv — final cleaned/aligned core testing file
+
+-   training_model_yearly_weather_final.csv — final cleaned/aligned yearly-weather training file
+
+-   testing_model_yearly_weather_final.csv — final cleaned/aligned yearly weather testing file
+
+-   training_model_monthly_weather_final.csv — final cleaned/aligned monthly-weather training file
+
+-   testing_model_monthly_weather_final.csv — final cleaned/aligned monthly-weather
+
+-   testing file training_model_growing_season_weather_final.csv — final cleaned growing-season training file
+
+#### Weather Files
+
+-   daymet_daily.csv — daily Daymet weather for each site-year
+
+-   daymet_month_sum.csv — monthly Daymet summaries in long format
+
+-   daymet_month_sum_wide.csv — monthly Daymet summaries in wide format
+
+-   testing_model_monthly_weather.csv — testing base model plus monthly weather
+
+-   testing_model_yearly_weather.csv — testing base model plus yearly weather
+
+-   training_model_growing_season_weather.csv — training base model plus growing-season weather
+
+-   training_model_monthly_weather.csv — training base model plus monthly weather
+
+-   training_model_yearly_weather.csv — training base model plus yearly weather
+
+-   training_weather_growing_season.csv — growing-season weather summary for
+
+-   training weather_yearly.csv — yearly weather summaries by year-site
+
+#### Metadata Files
+
+-   site_year_lookup.csv — unique year-site-longitude-latitude lookup used for Daymet pulls
+
+-   testing_meta_clean.csv — cleaned testing metadata by year-site
+
+-   testing_model_base.csv — testing trait/meta/soil merged base file
+
+-   testing_model_core.csv — testing core file; same structure as base in current
+
+-   workflow testing_soil_clean.csv — cleaned testing soil data by year-site
+
+-   testing_sub_clean.csv — cleaned testing submission file; prediction set with missing
+
+-   yield_mg_ha training_meta_clean.csv — cleaned training metadata by year-site
+
+-   training_model_base.csv — training trait + metadata + soil merged base file
+
+-   training_model_core.csv — training core file; same structure as base in current workflow
+
+-   training_site_year_dates.csv — planting/harvest date table used for growing-season summaries
+
+-   training_soil_clean.csv — cleaned training soil data by year-site
+
+-   training_trait_agg.csv — aggregated training trait data; one row per year-site-hybrid
+
+#### Summary Files
+
+-   final_dataset_summary.csv — dimensions of final modeling files
+
+-   removed_columns_summary.csv — optional log of dropped monthly-weather columns
+
+###Additional Notes
+
+-   The modeling response variable is `yield_mg_ha`.
+
+-   Training files contain observed yield; testing files use the same predictor structure but have missing yield values because they are intended for prediction.
+
+-   Trait data were aggregated from plot level to one row per `year-site-hybrid`.
+
+-   Metadata and soil are joined by `year + site`.
+
+-   Weather summaries are also joined by `year + site`.
+
+-   Site names and previous crop labels were standardized before merging.
+
+-   The main model-ready comparison sets are base, yearly weather, and monthly weather.
+
+-   The base and core files are currently structurally the same.
+
+-   Growing-season weather is only available for the training side.
+
+-   The final train/test files were aligned so that the predictor columns match before modeling.
+
+-   Final model-ready files are in `final_model_files/`; support files are in `weather_files/`, `metadata_files/`, and `summary_files/`.

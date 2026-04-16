@@ -1,0 +1,10 @@
+dataset,nrow,ncol
+training_model_base_final,107216,11
+testing_model_base_final,10057,10
+training_model_core_final,107216,11
+testing_model_core_final,10057,10
+training_model_yearly_weather_final,107216,18
+testing_model_yearly_weather_final,10057,17
+training_model_monthly_weather_final,107216,95
+testing_model_monthly_weather_final,10057,94
+training_model_growing_season_weather_final,107216,22
