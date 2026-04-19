@@ -1,0 +1,70 @@
+============================================================
+ Corn Yield Prediction — Run Summary
+ CRSS 8030 | Final Project Group 8 | 2026
+ Generated: 2026-04-19 14:20:05 
+============================================================
+
+--- Data ---
+  Training rows : 107216 
+  Test rows     : 10057 
+  Predictors (post-prep): 14 
+
+--- CV Setup ---
+  10-fold CV, stratified on yield_mg_ha
+
+--- Final Hyperparameters (best_r2 strategy) ---
+  XGBoost:
+    trees=478  tree_depth=8  min_n=23
+    loss_reduction=0.00008  sample_size=0.972
+    mtry=10  learn_rate=0.05503
+
+  LightGBM:
+    trees=1315  tree_depth=8  min_n=25
+    loss_reduction=0.01739  sample_size=0.648
+    mtry=6  learn_rate=0.07266
+
+--- Metrics Summary ---
+    model        set     rmse       rsq      mae
+ LightGBM   Training 1.816878 0.6263011 1.377563
+ LightGBM Validation 1.817905 0.6282166       NA
+  XGBoost   Training 1.816810 0.6263287 1.377414
+  XGBoost Validation 1.817753 0.6282778       NA
+
+--- Output Files Written ---
+  00_run_summary.txt 
+  01_yield_distribution.png 
+  02_missing_data_table.csv 
+  02_missing_data.png 
+  03_predictor_count.txt 
+  04_lgbm_hyperparam_grid.csv 
+  04_xgb_grid_viz.png 
+  04_xgb_hyperparam_grid.csv 
+  05_lgbm_race_plot.png 
+  05_lgbm_tune_metrics_all.csv 
+  05_xgb_race_plot.png 
+  05_xgb_tune_metrics_all.csv 
+  06_lgbm_best_hyperparams_all_strategies.csv 
+  06_xgb_best_hyperparams_all_strategies.csv 
+  07_final_chosen_hyperparams.csv 
+  08_train_val_distribution.png 
+  09_validation_metrics.csv 
+  10_training_metrics.csv 
+  11_metrics_summary_train_vs_val.csv 
+  11a_rmse_comparison.png 
+  11b_r2_comparison.png 
+  12_lgbm_pred_vs_obs.png 
+  12_lgbm_residuals.png 
+  12_lgbm_val_predictions.csv 
+  12_xgb_pred_vs_obs.png 
+  12_xgb_residuals.png 
+  12_xgb_val_predictions.csv 
+  13_lgbm_variable_importance.csv 
+  13_lgbm_vip.png 
+  13_xgb_variable_importance.csv 
+  13_xgb_vip.png 
+  14_test_predictions.csv 
+  data_glimpse.txt 
+  monthly_weather 
+  yearly_weather 
+
+============================================================

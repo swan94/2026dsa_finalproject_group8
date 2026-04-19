@@ -1,0 +1,3 @@
+model,selection,mtry,trees,min_n,tree_depth,learn_rate,loss_reduction,sample_size,.config,source
+XGBoost,best_r2,14,478,23,8,0.05502760651754431,7.861429894046697e-5,0.9716277418762911,pre0_mod076_post0,xgb_best_r2
+LightGBM,best_r2,13,934,27,10,0.07151437731705054,2.263753623862933e-4,0.5446328230050859,pre0_mod072_post0,lgbm_best_r2

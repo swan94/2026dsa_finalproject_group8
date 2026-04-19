@@ -1,0 +1,70 @@
+============================================================
+ Corn Yield Prediction — Run Summary
+ Model      : Yearly Weather
+ CRSS 8030  | Final Project Group 8 | 2026
+ Output dir : /home/hm64666/final_project/outputs/yearly_weather 
+ Generated  : 2026-04-19 16:06:33 
+============================================================
+
+--- Data ---
+  Training rows         : 107216 
+  Test rows             : 10057 
+  Predictors (post-prep): 21 
+
+--- CV Setup ---
+  10-fold CV, stratified on yield_mg_ha
+
+--- Final Hyperparameters (best_r2 strategy) ---
+  XGBoost:
+    trees=478  tree_depth=8  min_n=23
+    loss_reduction=0.00008  sample_size=0.972
+    mtry=14  learn_rate=0.05503
+
+  LightGBM:
+    trees=934  tree_depth=10  min_n=27
+    loss_reduction=0.00023  sample_size=0.545
+    mtry=13  learn_rate=0.07151
+
+--- Metrics Summary ---
+    model        set     rmse       rsq      mae
+ LightGBM   Training 1.816886 0.6262973 1.377630
+ LightGBM Validation 1.817905 0.6282146       NA
+  XGBoost   Training 1.816814 0.6263269 1.377416
+  XGBoost Validation 1.817748 0.6282800       NA
+
+--- Output Files Written ---
+  yw_00_run_summary.txt 
+  yw_01_yield_distribution.png 
+  yw_02_missing_data_table.csv 
+  yw_02_missing_data.png 
+  yw_03_predictor_count.txt 
+  yw_04_lgbm_hyperparam_grid.csv 
+  yw_04_xgb_grid_viz.png 
+  yw_04_xgb_hyperparam_grid.csv 
+  yw_05_lgbm_race_plot.png 
+  yw_05_lgbm_tune_metrics_all.csv 
+  yw_05_xgb_race_plot.png 
+  yw_05_xgb_tune_metrics_all.csv 
+  yw_06_lgbm_best_hyperparams_all_strategies.csv 
+  yw_06_xgb_best_hyperparams_all_strategies.csv 
+  yw_07_final_chosen_hyperparams.csv 
+  yw_08_train_val_distribution.png 
+  yw_09_validation_metrics.csv 
+  yw_10_training_metrics.csv 
+  yw_11_metrics_summary_train_vs_val.csv 
+  yw_11a_rmse_comparison.png 
+  yw_11b_r2_comparison.png 
+  yw_12_lgbm_pred_vs_obs.png 
+  yw_12_lgbm_residuals.png 
+  yw_12_lgbm_val_predictions.csv 
+  yw_12_xgb_pred_vs_obs.png 
+  yw_12_xgb_residuals.png 
+  yw_12_xgb_val_predictions.csv 
+  yw_13_lgbm_variable_importance.csv 
+  yw_13_lgbm_vip.png 
+  yw_13_xgb_variable_importance.csv 
+  yw_13_xgb_vip.png 
+  yw_14_test_predictions.csv 
+  yw_data_glimpse.txt 
+
+============================================================

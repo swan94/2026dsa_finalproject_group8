@@ -1,0 +1,19 @@
+Predictors after preprocessing: 21 
+
+=== Yearly Weather — Validation Metrics ===
+# A tibble: 2 × 3
+  model     rmse   rsq
+  <chr>    <dbl> <dbl>
+1 XGBoost   1.82 0.628
+2 LightGBM  1.82 0.628
+
+=== Yearly Weather — Metrics Summary (Train vs Validation) ===
+# A tibble: 4 × 5
+  model    set         rmse   rsq   mae
+  <chr>    <chr>      <dbl> <dbl> <dbl>
+1 LightGBM Training    1.82 0.626  1.38
+2 LightGBM Validation  1.82 0.628 NA   
+3 XGBoost  Training    1.82 0.626  1.38
+4 XGBoost  Validation  1.82 0.628 NA   
+
+✓ All Yearly Weather outputs written to: /home/hm64666/final_project/outputs/yearly_weather 

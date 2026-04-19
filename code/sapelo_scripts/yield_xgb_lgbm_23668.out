@@ -1,0 +1,145 @@
+Rows: 107,216
+Columns: 11
+$ yield_mg_ha   <dbl> 13.672477, 12.810817, 14.994130, 12.366742, 14.194204, 1…
+$ year          <dbl> 2014, 2014, 2014, 2014, 2014, 2014, 2014, 2014, 2014, 20…
+$ site          <chr> "DEH1", "DEH1", "DEH1", "DEH1", "DEH1", "DEH1", "DEH1", …
+$ hybrid        <chr> "B37/MO17", "B37/OH43", "B73/MO17", "B73/PHG35", "B73/PH…
+$ previous_crop <chr> "Soybean", "Soybean", "Soybean", "Soybean", "Soybean", "…
+$ longitude     <dbl> -75.20405, -75.20405, -75.20405, -75.20405, -75.20405, -…
+$ latitude      <dbl> 38.63741, 38.63741, 38.63741, 38.63741, 38.63741, 38.637…
+$ soilp_h       <dbl> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, …
+$ om_pct        <dbl> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, …
+$ soilk_ppm     <dbl> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, …
+$ soilp_ppm     <dbl> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, …
+Rows: 10,057
+Columns: 10
+$ year          <dbl> 2024, 2024, 2024, 2024, 2024, 2024, 2024, 2024, 2024, 20…
+$ site          <chr> "DEH1", "DEH1", "DEH1", "DEH1", "DEH1", "DEH1", "DEH1", …
+$ hybrid        <chr> "01CSI6/LH287", "01DIB2/LH287", "01DIB2/PHP02", "2369/LH…
+$ previous_crop <chr> "Soybean", "Soybean", "Soybean", "Soybean", "Soybean", "…
+$ longitude     <dbl> -75.45892, -75.45892, -75.45892, -75.45892, -75.45892, -…
+$ latitude      <dbl> 38.63761, 38.63761, 38.63761, 38.63761, 38.63761, 38.637…
+$ soilp_h       <dbl> 6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 6…
+$ om_pct        <dbl> 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1…
+$ soilk_ppm     <dbl> 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 1…
+$ soilp_ppm     <dbl> 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, …
+Predictors after preprocessing: 14 
+#  10-fold cross-validation using stratification 
+# A tibble: 10 × 2
+   splits                id    
+   <list>                <chr> 
+ 1 <split [96492/10724]> Fold01
+ 2 <split [96492/10724]> Fold02
+ 3 <split [96492/10724]> Fold03
+ 4 <split [96492/10724]> Fold04
+ 5 <split [96496/10720]> Fold05
+ 6 <split [96496/10720]> Fold06
+ 7 <split [96496/10720]> Fold07
+ 8 <split [96496/10720]> Fold08
+ 9 <split [96496/10720]> Fold09
+10 <split [96496/10720]> Fold10
+<Analysis/Assess/Total>
+<96492/10724/107216>
+Boosted Tree Model Specification (regression)
+
+Main Arguments:
+  mtry = tune()
+  trees = tune()
+  min_n = tune()
+  tree_depth = tune()
+  learn_rate = tune()
+  loss_reduction = tune()
+  sample_size = tune()
+
+Engine-Specific Arguments:
+  nthread = parallel::detectCores() - 1
+  early_stopping_rounds = 50
+
+Computational engine: xgboost 
+
+Boosted Tree Model Specification (regression)
+
+Main Arguments:
+  mtry = tune()
+  trees = tune()
+  min_n = tune()
+  tree_depth = tune()
+  learn_rate = tune()
+  loss_reduction = tune()
+  sample_size = tune()
+
+Engine-Specific Arguments:
+  num_threads = parallel::detectCores() - 1
+
+Computational engine: lightgbm 
+
+# A tibble: 6 × 9
+  source       mtry trees min_n tree_depth learn_rate loss_reduction sample_size
+  <chr>       <int> <int> <int>      <int>      <dbl>          <dbl>       <dbl>
+1 xgb_best_r…    10   478    23          8     0.0550      0.0000786       0.972
+2 xgb_best_r…     3   587    31          7     0.0229      0.0000154       0.862
+3 xgb_best_r…    10   478    23          8     0.0550      0.0000786       0.972
+4 xgb_best_r2    10   478    23          8     0.0550      0.0000786       0.972
+5 xgb_best_r…     3   587    31          7     0.0229      0.0000154       0.862
+6 xgb_best_r…    10   478    23          8     0.0550      0.0000786       0.972
+# ℹ 1 more variable: .config <chr>
+# A tibble: 6 × 9
+  source       mtry trees min_n tree_depth learn_rate loss_reduction sample_size
+  <chr>       <int> <int> <int>      <int>      <dbl>          <dbl>       <dbl>
+1 lgbm_best_…     6  1315    25          8     0.0727         0.0174       0.648
+2 lgbm_best_…     3  1230    28         10     0.0387         4.14         0.982
+3 lgbm_best_…     8   372    37          8     0.0350         0.553        0.705
+4 lgbm_best_…     6  1315    25          8     0.0727         0.0174       0.648
+5 lgbm_best_…     3  1230    28         10     0.0387         4.14         0.982
+6 lgbm_best_…     8   372    37          8     0.0350         0.553        0.705
+# ℹ 1 more variable: .config <chr>
+Boosted Tree Model Specification (regression)
+
+Main Arguments:
+  mtry = xgb_best_r2$mtry
+  trees = xgb_best_r2$trees
+  min_n = xgb_best_r2$min_n
+  tree_depth = xgb_best_r2$tree_depth
+  learn_rate = xgb_best_r2$learn_rate
+  loss_reduction = xgb_best_r2$loss_reduction
+  sample_size = xgb_best_r2$sample_size
+
+Computational engine: xgboost 
+
+Boosted Tree Model Specification (regression)
+
+Main Arguments:
+  mtry = lgbm_best_r2$mtry
+  trees = lgbm_best_r2$trees
+  min_n = lgbm_best_r2$min_n
+  tree_depth = lgbm_best_r2$tree_depth
+  learn_rate = lgbm_best_r2$learn_rate
+  loss_reduction = lgbm_best_r2$loss_reduction
+  sample_size = lgbm_best_r2$sample_size
+
+Computational engine: lightgbm 
+
+=== XGBoost — Validation Metrics ===
+# A tibble: 2 × 4
+  .metric .estimator .estimate .config        
+  <chr>   <chr>          <dbl> <chr>          
+1 rmse    standard       1.82  pre0_mod0_post0
+2 rsq     standard       0.628 pre0_mod0_post0
+
+=== LightGBM — Validation Metrics ===
+# A tibble: 2 × 4
+  .metric .estimator .estimate .config        
+  <chr>   <chr>          <dbl> <chr>          
+1 rmse    standard       1.82  pre0_mod0_post0
+2 rsq     standard       0.628 pre0_mod0_post0
+# A tibble: 2 × 4
+  .metric .estimator .estimate model             
+  <chr>   <chr>          <dbl> <chr>             
+1 rmse    standard       1.82  XGBoost — Training
+2 rsq     standard       0.626 XGBoost — Training
+# A tibble: 2 × 4
+  .metric .estimator .estimate model              
+  <chr>   <chr>          <dbl> <chr>              
+1 rmse    standard       1.82  LightGBM — Training
+2 rsq     standard       0.626 LightGBM — Training
+Predictions saved to: /home/hm64666/final_project/data/testing/test_predictions.csv 
