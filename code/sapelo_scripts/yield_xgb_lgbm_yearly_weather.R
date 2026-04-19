@@ -1,11 +1,3 @@
-# ============================================================
-#  Corn Yield Prediction — XGBoost & LightGBM
-#  Model: Yearly Weather
-#  CRSS 8030 | Final Project Group 8 | 2026
-#  ** Cluster-ready: all outputs saved to disk **
-# ============================================================
-
-
 # ── Step 1: Load Libraries ───────────────────────────────────
 library(tidymodels)   # Core ML framework
 library(finetune)     # tune_race_anova()
@@ -18,11 +10,6 @@ library(doParallel)   # Parallel processing
 
 
 # ── Output Directory & Model Tag ─────────────────────────────
-#  All outputs go into their own subfolder so they never
-#  overwrite the base-model or monthly-weather runs.
-#
-#  model_tag  → prefix on every filename  (e.g. yw_01_...)
-#  out_dir    → dedicated subfolder
 
 model_tag <- "yw"     # yw = yearly weather
 out_dir   <- "/home/hm64666/final_project/outputs/yearly_weather"
