@@ -66,7 +66,7 @@ Final models were selected using the **`best_r2`** strategy.
 
 ---
 
-## Outputs (per model run)
+#### Output (Eg. of naming structure followed for readability)
 
 | File | Description |
 |---|---|
