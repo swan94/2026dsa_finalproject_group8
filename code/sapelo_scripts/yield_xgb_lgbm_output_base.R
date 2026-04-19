@@ -1,10 +1,3 @@
-# ============================================================
-#  Corn Yield Prediction — XGBoost & LightGBM
-#  CRSS 8030 | Final Project Group 8 | 2026
-#  ** Cluster-ready: all outputs saved to disk **
-# ============================================================
-
-
 # ── Step 1: Load Libraries ───────────────────────────────────
 library(tidymodels)   # Core ML framework
 library(finetune)     # tune_race_anova()
@@ -17,8 +10,6 @@ library(doParallel)   # Parallel processing
 
 
 # ── Output Directory Setup ───────────────────────────────────
-#  All plots, CSVs, and tables are written here.
-#  Change this one path if you move the project.
 
 out_dir <- "/home/hm64666/final_project/outputs"
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
