@@ -1,43 +1,32 @@
 ---
-editor_options: 
-  markdown: 
-    wrap: 72
+
 ---
 
 # 2026dsa_finalproject_group8
 
 ## Data Engineering
 
-This project prepares training and testing data for downstream machine
-learning models for the final course project for CRSS 8030. The project
-goal is to prepare clean, reproducible training and testing datasets and
-use them to predict corn yield for the test set.
+This project prepares training and testing data for downstream machine learning models for the final course project for CRSS 8030. The project goal is to prepare clean, reproducible training and testing datasets and use them to predict corn yield for the test set.
 
 The workflow was divided into two main parts:
 
--   Data engineering: cleaning, mergining, feature engineering, and
-    exporting model-ready datasets
+-   Data engineering: cleaning, mergining, feature engineering, and exporting model-ready datasets
 
--    Modeling: training and tuning XGBoost and LightGBM models across
-    multiple feature sets.
+-    Modeling: training and tuning XGBoost and LightGBM models across multiple feature sets.
 
 ### Main Files
 
-Data Engineering:
+####      Data Engineering:
 
--   `code/CRSS8030_Final_project_group8_data_engineering.qmd` — main
-    data engineering workflow
+-   `code/CRSS8030_Final_project_group8_data_engineering.qmd` — main data engineering workflow
 
--   `code/CRSS8030_Final_project_group8_data_engineering.html` —
-    rendered report
+-   `code/CRSS8030_Final_project_group8_data_engineering.html` — rendered report
 
-    Modeling:
+    #### Modeling: 
 
--   `code/yield_xgb_lgbm.R` — main modeling workflow for XGBoost and
-    LightGBM
+-   `code/yield_xgb_lgbm.R` — main modeling workflow for XGBoost and LightGBM
 
--   `code/yield_prediction_ml.qmd` — modeling notebook / supporting
-    workflow
+-   `code/yield_prediction_ml.qmd` — modeling notebook / supporting workflow
 
 -   `code/yield_prediction_ml_script.R` — extracted script version
 
@@ -45,12 +34,11 @@ Data Engineering:
 
 -   `data/` — raw training and testing input files
 -   `output/final_model_files/` — final model-ready datasets
--   `output/weather_files/` — weather support and intermediate weather
-    files
+-   `output/weather_files/` — weather support and intermediate weather files
 -   `output/metadata_files/` — cleaned trait, soil, and metadata files
 -   `output/summary_files/` — summary and documentation files
 
-###Data Engineering Summary
+### Data Engineering Summary
 
 The data engineering workflow:
 
@@ -60,45 +48,36 @@ The data engineering workflow:
 
 -   merged testing submission, metadata, and soil files
 
--   aggregated training trait data to the year × site × hybrid level to
-    match the submission structure
+-   aggregated training trait data to the year × site × hybrid level to match the submission structure
 
 -   added external weather features
 
--   exported multiple model-ready datasets for downstream machine
-    learning
+-   exported multiple model-ready datasets for downstream machine learning
 
 ### Modeling Notes
 
 -   Response variable: `yield_mg_ha`
 -   Training data contain observed yield
--   Testing data retain matching predictors but do not contain observed
-    yield for modeling
--   Main model-ready datasets are base, yearly weather, and monthly
-    weather
+-   Testing data retain matching predictors but do not contain observed yield for modeling
+-   Main model-ready datasets are base, yearly weather, and monthly weather
 
-###Feature set meaning
+### Feature set meaning 
 
--   Base/Core — cleaned internal predictors only (year, site, hybrid,
-    previous_crop, coordinates, and soil variables)
+-   Base/Core — cleaned internal predictors only (year, site, hybrid, previous_crop, coordinates, and soil variables)
 
 -   Yearly weather — base predictors plus yearly weather summaries
 
--   Monthly weather — base predictors plus monthly weather summaries
-    across all months
+-   Monthly weather — base predictors plus monthly weather summaries across all months
 
--   Monthly GS — revised monthly weather feature set restricted to
-    biologically relevant corn growing-season months
+-   Monthly GS — revised monthly weather feature set restricted to biologically relevant corn growing-season months
 
 ### Partner Handoff
 
-Use `output/final_model_files/` for downstream modeling. Supporting
-files are organized into weather, metadata, and summary subfolders.
+Use `output/final_model_files/` for downstream modeling. Supporting files are organized into weather, metadata, and summary subfolders.
 
 ### Large Files
 
-Large generated monthly-weather CSVs were excluded from GitHub due to
-file size limits and should be shared separately if needed.
+Large generated monthly-weather CSVs were excluded from GitHub due to file size limits and should be shared separately if needed.
 
 ### Model training
 
@@ -109,9 +88,7 @@ file size limits and should be shared separately if needed.
 -   Imputed missing numeric values with median, categorical with mode
 -   One-hot encoded all nominal predictors (`step_dummy`)
 -   Removed near-zero-variance columns (`step_nzv`)
--   Dropped raw date columns (`date_planted`, `date_harvested`) — or
-    optionally engineered them into numeric features: day-of-year
-    planted, day-of-year harvested, and season length in days
+-   Dropped raw date columns (`date_planted`, `date_harvested`) — or optionally engineered them into numeric features: day-of-year planted, day-of-year harvested, and season length in days
 
 #### 2. Cross-Validation
 
@@ -120,8 +97,7 @@ file size limits and should be shared separately if needed.
 #### 3. Hyperparameter Tuning
 
 -   100-point Latin Hypercube search grid per model
--   ANOVA racing (`tune_race_anova`) to eliminate poor candidates early
-    and reduce compute time
+-   ANOVA racing (`tune_race_anova`) to eliminate poor candidates early and reduce compute time
 -   Metrics tracked: RMSE, R², MAE across all folds
 
 #### 4. Model Selection
@@ -144,8 +120,7 @@ Final models were selected using the **`best_r2`** strategy.
 -   80/20 stratified split of training data for final validation
 -   Models fit on the 80% training portion via `last_fit()`
 -   RMSE, R², and MAE reported for both training and validation sets
--   Final models refit on 100% of training data to generate held-out
-    test predictions
+-   Final models refit on 100% of training data to generate held-out test predictions
 
 ------------------------------------------------------------------------
 
