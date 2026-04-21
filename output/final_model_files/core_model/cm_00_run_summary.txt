@@ -1,0 +1,70 @@
+============================================================
+ Corn Yield Prediction — Run Summary
+ Model      : Core Model
+ CRSS 8030  | Final Project Group 8 | 2026
+ Output dir : /home/hm64666/final_project/outputs/core_model 
+ Generated  : 2026-04-19 23:57:28 
+============================================================
+
+--- Data ---
+  Training rows         : 107216 
+  Test rows             : 10057 
+  Predictors (post-prep): 14 
+
+--- CV Setup ---
+  10-fold CV, stratified on yield_mg_ha
+
+--- Final Hyperparameters (best_r2 strategy) ---
+  XGBoost:
+    trees=478  tree_depth=8  min_n=23
+    loss_reduction=0.00008  sample_size=0.972
+    mtry=10  learn_rate=0.05503
+
+  LightGBM:
+    trees=1315  tree_depth=8  min_n=25
+    loss_reduction=0.01739  sample_size=0.648
+    mtry=6  learn_rate=0.07266
+
+--- Metrics Summary ---
+    model        set     rmse       rsq      mae
+ LightGBM   Training 1.816878 0.6263011 1.377563
+ LightGBM Validation 1.817905 0.6282166       NA
+  XGBoost   Training 1.816810 0.6263287 1.377414
+  XGBoost Validation 1.817753 0.6282778       NA
+
+--- Output Files Written ---
+  cm_00_run_summary.txt 
+  cm_01_yield_distribution.png 
+  cm_02_missing_data_table.csv 
+  cm_02_missing_data.png 
+  cm_03_predictor_count.txt 
+  cm_04_lgbm_hyperparam_grid.csv 
+  cm_04_xgb_grid_viz.png 
+  cm_04_xgb_hyperparam_grid.csv 
+  cm_05_lgbm_race_plot.png 
+  cm_05_lgbm_tune_metrics_all.csv 
+  cm_05_xgb_race_plot.png 
+  cm_05_xgb_tune_metrics_all.csv 
+  cm_06_lgbm_best_hyperparams_all_strategies.csv 
+  cm_06_xgb_best_hyperparams_all_strategies.csv 
+  cm_07_final_chosen_hyperparams.csv 
+  cm_08_train_val_distribution.png 
+  cm_09_validation_metrics.csv 
+  cm_10_training_metrics.csv 
+  cm_11_metrics_summary_train_vs_val.csv 
+  cm_11a_rmse_comparison.png 
+  cm_11b_r2_comparison.png 
+  cm_12_lgbm_pred_vs_obs.png 
+  cm_12_lgbm_residuals.png 
+  cm_12_lgbm_val_predictions.csv 
+  cm_12_xgb_pred_vs_obs.png 
+  cm_12_xgb_residuals.png 
+  cm_12_xgb_val_predictions.csv 
+  cm_13_lgbm_variable_importance.csv 
+  cm_13_lgbm_vip.png 
+  cm_13_xgb_variable_importance.csv 
+  cm_13_xgb_vip.png 
+  cm_14_test_predictions.csv 
+  cm_data_glimpse.txt 
+
+============================================================

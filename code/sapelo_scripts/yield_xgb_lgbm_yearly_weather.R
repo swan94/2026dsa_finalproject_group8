@@ -1,10 +1,3 @@
-# ============================================================
-#  Corn Yield Prediction — XGBoost & LightGBM
-#  Model: Yearly Weather
-#  CRSS 8030 | Final Project Group 8 | 2026
-#  ** Cluster-ready: all outputs saved to disk **
-# ============================================================
-
 
 # ── Step 1: Load Libraries ───────────────────────────────────
 library(tidymodels)   # Core ML framework
@@ -18,14 +11,9 @@ library(doParallel)   # Parallel processing
 
 
 # ── Output Directory & Model Tag ─────────────────────────────
-#  All outputs go into their own subfolder so they never
-#  overwrite the base-model or monthly-weather runs.
-#
-#  model_tag  → prefix on every filename  (e.g. yw_01_...)
-#  out_dir    → dedicated subfolder
 
 model_tag <- "yw"     # yw = yearly weather
-out_dir   <- "/home/hm64666/final_project/outputs/yearly_weather"
+out_dir   <- "/home/hm64666/final_project/outputs/core_model"
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Helper: save a ggplot (prefixed filename, consistent size)
@@ -50,8 +38,8 @@ save_csv <- function(df, filename) {
 
 
 # ── Step 2: Load Data ────────────────────────────────────────
-train_path <- "/home/hm64666/final_project/data/training/training_model_yearly_weather_final.csv"
-test_path  <- "/home/hm64666/final_project/data/testing/testing_model_yearly_weather_final.csv"
+train_path <- "/home/hm64666/final_project/data/training/training_model_core_final.csv"
+test_path  <- "/home/hm64666/final_project/data/testing/testing_model_core_final.csv"
 
 train_raw <- read_csv(train_path)
 test_raw  <- read_csv(test_path)
