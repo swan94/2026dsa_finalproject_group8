@@ -1,0 +1,72 @@
+============================================================
+ Corn Yield Prediction — Run Summary
+ Model      : Monthly Growing Season Weather (monthly_gs)
+ CRSS 8030  | Final Project Group 8 | 2026
+ Output dir : /home/hm64666/final_project/outputs/monthly_gs 
+ Generated  : 2026-04-21 11:20:31 
+============================================================
+
+--- Data ---
+  Training file         : training_model_monthly_gs_final.csv 
+  Testing file          : testing_model_monthly_gs_final.csv 
+  Training rows         : 107216 
+  Test rows             : 10057 
+  Predictors (post-prep): 56 
+
+--- CV Setup ---
+  10-fold CV, stratified on yield_mg_ha
+
+--- Final Hyperparameters (best_r2 strategy) ---
+  XGBoost:
+    trees=478  tree_depth=8  min_n=23
+    loss_reduction=0.00008  sample_size=0.972
+    mtry=36  learn_rate=0.05503
+
+  LightGBM:
+    trees=1040  tree_depth=8  min_n=10
+    loss_reduction=0.00008  sample_size=0.936
+    mtry=17  learn_rate=0.05414
+
+--- Metrics Summary ---
+    model        set     rmse       rsq      mae
+ LightGBM   Training 1.816835 0.6263183 1.377531
+ LightGBM Validation 1.817811 0.6282545       NA
+  XGBoost   Training 1.816822 0.6263239 1.377427
+  XGBoost Validation 1.817750 0.6282790       NA
+
+--- Output Files Written ---
+  mg_00_run_summary.txt 
+  mg_01_yield_distribution.png 
+  mg_02_missing_data_table.csv 
+  mg_02_missing_data.png 
+  mg_03_predictor_count.txt 
+  mg_04_lgbm_hyperparam_grid.csv 
+  mg_04_xgb_grid_viz.png 
+  mg_04_xgb_hyperparam_grid.csv 
+  mg_05_lgbm_race_plot.png 
+  mg_05_lgbm_tune_metrics_all.csv 
+  mg_05_xgb_race_plot.png 
+  mg_05_xgb_tune_metrics_all.csv 
+  mg_06_lgbm_best_hyperparams_all_strategies.csv 
+  mg_06_xgb_best_hyperparams_all_strategies.csv 
+  mg_07_final_chosen_hyperparams.csv 
+  mg_08_train_val_distribution.png 
+  mg_09_validation_metrics.csv 
+  mg_10_training_metrics.csv 
+  mg_11_metrics_summary_train_vs_val.csv 
+  mg_11a_rmse_comparison.png 
+  mg_11b_r2_comparison.png 
+  mg_12_lgbm_pred_vs_obs.png 
+  mg_12_lgbm_residuals.png 
+  mg_12_lgbm_val_predictions.csv 
+  mg_12_xgb_pred_vs_obs.png 
+  mg_12_xgb_residuals.png 
+  mg_12_xgb_val_predictions.csv 
+  mg_13_lgbm_variable_importance.csv 
+  mg_13_lgbm_vip.png 
+  mg_13_xgb_variable_importance.csv 
+  mg_13_xgb_vip.png 
+  mg_14_test_predictions.csv 
+  mg_data_glimpse.txt 
+
+============================================================
