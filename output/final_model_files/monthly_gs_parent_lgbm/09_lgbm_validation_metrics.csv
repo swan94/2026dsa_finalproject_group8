@@ -1,0 +1,3 @@
+.metric,.estimator,.estimate,.config,model
+rmse,standard,1.7879382067094025,pre0_mod0_post0,LightGBM
+rsq,standard,0.6403821941448846,pre0_mod0_post0,LightGBM

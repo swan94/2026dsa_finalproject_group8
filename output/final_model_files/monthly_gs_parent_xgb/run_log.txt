@@ -1,0 +1,22 @@
+RUN START
+Step 4: reading data
+train rows = 107216, cols = 60
+test rows = 10057, cols = 59
+Step 5: adding parent features
+Step 6: writing EDA outputs
+Step 7: building recipe
+Step 8: prepping recipe
+Predictors after preprocessing: 62
+Step 9: building CV folds
+Step 10: defining XGBoost model
+Step 11: creating XGBoost tuning grid
+Step 12: tuning XGBoost
+Step 13: selecting best hyperparameters
+Step 14: final validation split
+Step 15: running final validation
+Step 16: writing predicted vs observed plot
+Step 17: fitting final XGBoost model on all training data
+Step 18: predicting test set
+Step 19: variable importance
+Step 20: saving fitted XGBoost model
+SUCCESS: completed XGBoost run

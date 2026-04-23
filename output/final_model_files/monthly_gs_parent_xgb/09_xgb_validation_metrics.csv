@@ -1,0 +1,3 @@
+.metric,.estimator,.estimate,.config,model
+rmse,standard,1.7880556173426467,pre0_mod0_post0,XGBoost
+rsq,standard,0.6403340485441462,pre0_mod0_post0,XGBoost
