@@ -1,17 +1,16 @@
-------------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
 # 2026dsa_finalproject_group8
 
 ## Project Overview
 
-This project prepares clean, reproducible training and testing datasets for the CRSS 8030 final course project and uses them for downstream machine learning prediction of corn yield.
+This project was completed for the CRSS 8030 final course project and focuses on predicting corn yield using reproducible data engineering, machine learning, and interactive visualization.
 
-The workflow was divided into two main components:
+The workflow included three connected components:
 
 -   **Data engineering** — cleaning, merging, feature engineering, weather integration, and export of model-ready datasets
 -   **Modeling** — training and tuning XGBoost and LightGBM models across multiple feature sets to predict `yield_mg_ha`
+-   **Shiny app development** — building an interactive app to communicate the data, model performance, and 2024 prediction results
+
+The overall goal was to prepare clean training and testing datasets, evaluate multiple machine learning feature sets, and generate predictions for the 2024 test environments.
 
 ------------------------------------------------------------------------
 
@@ -24,7 +23,7 @@ The workflow was divided into two main components:
 
 ### Modeling
 
-#### Original / general modeling scripts
+#### Original / general modeling workflows
 
 -   `code/yield_xgb_lgbm.R` — original main modeling workflow
 -   `code/yield_prediction_ml.qmd` — modeling notebook / supporting workflow
@@ -36,6 +35,12 @@ The workflow was divided into two main components:
 -   `code/hybrid_yield_lgbm.R` — parent-only LightGBM model
 -   `code/hybridplus_yield_xgb.R` — hybrid-plus XGBoost model
 -   `code/hybridplus_yield_lgbm.R` — hybrid-plus LightGBM model
+
+### Shiny App
+
+-   `app.R` — main deployed Shiny application
+-   `code/app.R` — development version of the app
+-   Live app: `https://harimarasini.shinyapps.io/CornVision/`
 
 ------------------------------------------------------------------------
 
@@ -60,21 +65,21 @@ The workflow was divided into two main components:
 
 The data engineering workflow:
 
--   cleaned and standardized site names and previous crop labels
--   merged training trait, metadata, and soil files
--   merged testing submission, metadata, and soil files
--   aggregated training trait data to the **year × site × hybrid** level to match the submission structure
--   added external weather features
--   exported multiple model-ready datasets for downstream machine learning
+-   Cleaned and standardized site names and previous crop labels
+-   Merged training trait, metadata, and soil files
+-   Merged testing submission, metadata, and soil files
+-   Aggregated training trait data to the **year × site × hybrid** level to match the final submission structure
+-   Added external weather features
+-   Exported multiple model-ready datasets for downstream machine learning
 
 ------------------------------------------------------------------------
 
 ## Modeling Notes
 
 -   **Response variable:** `yield_mg_ha`
--   Training data contains observed yield
--   Testing data retain matching predictors, but do not contain observed yield
--   Main model-ready datasets include:
+-   Training data contain observed yield
+-   Testing data retain matching predictors but do not contain observed yield
+-   Main model-ready datasets included:
     -   **Base/Core**
     -   **Yearly weather**
     -   **Monthly weather**
@@ -84,24 +89,37 @@ The data engineering workflow:
 
 ## Feature Set Meaning
 
--   **Base/Core** — cleaned internal predictors only (year, site, hybrid, previous_crop, coordinates, and soil variables)
--   **Yearly weather** — base predictors plus yearly weather summaries
--   **Monthly weather** — base predictors plus monthly weather summaries across all months
--   **Monthly GS** — revised monthly weather feature set restricted to biologically relevant corn growing-season months
+### Base/Core
 
-### Additional revised hybrid feature sets
+Cleaned internal predictors only, including: - `year` - `site` - `hybrid` - `previous_crop` - coordinates - soil variables
 
-#### Parent-only
+### Yearly Weather
 
-The parent-only models replaced raw hybrid identity with hybrid-derived parent features:
+Base predictors plus yearly weather summaries.
+
+### Monthly Weather
+
+Base predictors plus monthly weather summaries across all months.
+
+### Monthly GS
+
+A revised monthly weather feature set restricted to biologically relevant corn growing-season months.
+
+------------------------------------------------------------------------
+
+## Revised Hybrid Feature Sets
+
+### Parent-only
+
+The parent-only models replaced raw hybrid identity with hybrid-derived parent structure:
 
 -   `parent_a`
 -   `parent_b`
 -   `hybrid_has_slash`
 
-These were used to reduce prediction collapse at the environment level and improve within-site hybrid differentiation.
+This feature set was designed to reduce prediction collapse at the environment level while improving within-site hybrid differentiation in a relatively simple and interpretable way.
 
-#### Hybrid-plus
+### Hybrid-plus
 
 The hybrid-plus models extended the parent-only approach by retaining exact hybrid identity and adding:
 
@@ -111,21 +129,7 @@ The hybrid-plus models extended the parent-only approach by retaining exact hybr
 -   `parent_pair`
 -   `hybrid_has_slash`
 
-This was tested to improve hybrid-specific prediction while keeping biologically interpretable parent structure.
-
-------------------------------------------------------------------------
-
-## Partner Handoff
-
-Use `output/final_model_files/` for downstream modeling inputs. Supporting files are organized into weather, metadata, and summary subfolders.
-
-For the revised Monthly GS modeling runs, use the cluster-generated output folders listed above.
-
-------------------------------------------------------------------------
-
-## Large Files
-
-Large generated monthly-weather CSVs were excluded from GitHub due to file size limits and should be shared separately if needed.
+This feature set was tested to improve hybrid-specific prediction further while preserving interpretable parent structure. However, the gain over parent-only was very small.
 
 ------------------------------------------------------------------------
 
@@ -142,63 +146,97 @@ The revised cluster-ready models used a tidymodels recipe that:
 -   one-hot encoded nominal predictors with `step_dummy()`
 -   removed near-zero-variance predictors with `step_nzv()`
 
-### 2. Cross-Validation
+### 2. Cross-Validation and Tuning Strategy
 
-Revised hybrid-plus tuning runs used:
+Two rounds of revised modeling were conducted.
 
--   **10-fold cross-validation**
--   stratified on `yield_mg_ha`
+#### Parent-only models
 
-### 3. Hyperparameter Tuning
-
-Revised hybrid-plus tuning runs used:
-
--   **50-point Latin Hypercube search grid** per model
--   metrics tracked: **RMSE, R², and MAE**
--   separate model runs for:
+-   **5-fold cross-validation**
+-   **30-point Latin Hypercube search grid**
+-   separate runs for:
     -   XGBoost
     -   LightGBM
 
-### 4. Final Validation
+#### Hybrid-plus models
 
--   final **80/20 stratified split** of training data
--   fitted with `last_fit()`
--   validation metrics reported for both models
--   final models refit on 100% of training data to generate held-out test predictions
+-   **10-fold cross-validation**
+-   **50-point Latin Hypercube search grid**
+-   separate runs for:
+    -   XGBoost
+    -   LightGBM
+
+Metrics tracked for all runs: - **RMSE** - **R²** - **MAE**
+
+### 3. Final Validation
+
+For each revised model:
+
+-   a final **80/20 stratified split** of the training data was used
+-   models were fitted with `last_fit()`
+-   validation metrics were recorded
+-   final models were refit on 100% of the training data to generate held-out test predictions
 
 ------------------------------------------------------------------------
 
 ## Final Model Comparison
 
-| Feature Set | Model | Validation RMSE | Validation R² | Notes |
-|---------------|--------------:|--------------:|--------------:|---------------|
-| Old Monthly GS | XGBoost | 1.817750 | 0.628279 | Original Monthly GS model |
-| Old Monthly GS | LightGBM | 1.817811 | 0.628255 | Very similar to XGBoost |
-| Parent-only | XGBoost | 1.788056 | 0.640334 | Added parent-derived hybrid features |
-| Parent-only | LightGBM | 1.787938 | 0.640382 | Slightly better than XGBoost |
-| Hybrid-plus | XGBoost | 1.787927 | 0.640382 | Added raw hybrid + parent-pair features |
-| **Hybrid-plus** | **LightGBM** | **1.787780** | **0.640443** | **Best overall model** |
+| Feature Set | Model | CV / Grid | Validation RMSE | Validation R² | Notes |
+|------------|-----------:|-----------:|-----------:|-----------:|------------|
+| Old Monthly GS | XGBoost | original workflow | 1.817750 | 0.628279 | Original Monthly GS model |
+| Old Monthly GS | LightGBM | original workflow | 1.817811 | 0.628255 | Very similar to XGBoost |
+| Parent-only | XGBoost | 5-fold / 30-grid | 1.788056 | 0.640334 | Added parent-derived hybrid features |
+| **Parent-only** | **LightGBM** | **5-fold / 30-grid** | **1.787938** | **0.640382** | **Selected final model** |
+| Hybrid-plus | XGBoost | 10-fold / 50-grid | 1.787927 | 0.640382 | Added raw hybrid + parent-pair features |
+| Hybrid-plus | LightGBM | 10-fold / 50-grid | 1.787780 | 0.640443 | Slight numerical improvement, but minimal practical gain |
 
-### Summary of results
+------------------------------------------------------------------------
+
+## Summary of Results
 
 -   Both **parent-only** and **hybrid-plus** feature engineering improved model performance relative to the original Monthly GS models.
+-   The **parent-only** models were tuned using **5-fold cross-validation** and a **30-point grid**.
+-   The **hybrid-plus** models were tuned using **10-fold cross-validation** and a **50-point grid**.
 -   Validation RMSE decreased from approximately **1.818** to **1.788**.
 -   Validation R² increased from approximately **0.628** to **0.640**.
--   The best-performing final model was **Hybrid-plus LightGBM**, although differences among the best models were very small.
+-   Although the hybrid-plus models showed a very small numerical improvement, the gain was minimal relative to the added complexity.
+-   The final selected model was **parent-only LightGBM**, which provided strong performance with a simpler and more interpretable feature set.
 
 ------------------------------------------------------------------------
 
 ## Interpretation of Prediction Behavior
 
-A major issue in earlier modeling was that predictions tended to collapse at the **environment/site level**, giving many hybrids within a site the same or nearly the same predicted value.
+A major issue in earlier modeling was that predictions tended to collapse at the **environment/site** level, giving many hybrids within a site the same or nearly the same predicted value.
 
-The parent-only and hybrid-plus feature engineering steps improved this behavior by allowing the models to distinguish small groups of hybrids within sites based on shared parent structure. However, even in the revised runs, environment remained a strong driver of prediction, which is expected for yield.
+The parent-only and hybrid-plus feature engineering steps improved this behavior by allowing the models to distinguish small groups of hybrids within sites based on shared parent structure. However, environment remained a strong driver of prediction, which is expected for yield.
 
 Thus, the revised models improved:
 
 -   overall validation performance
 -   biological interpretability of within-site prediction groups
 -   hybrid differentiation relative to the original environment-heavy models
+
+------------------------------------------------------------------------
+
+## Shiny App Summary
+
+To communicate the final project results in an interactive format, we developed **CornVision**, an R Shiny application that visualizes the data, modeling workflow, and 2024 prediction outputs.
+
+The app includes:
+
+-   Project overview and key data statistics
+-   Yield exploratory data analysis
+-   Weather and soil visualizations
+-   Site-level exploration
+-   Variable importance plots
+-   Model performance summaries
+-   Interactive 2024 prediction displays
+
+The app was built to make the machine learning workflow more interpretable and accessible by allowing users to explore both the input data and the final prediction outputs through an interactive interface.
+
+### Live App
+
+`https://harimarasini.shinyapps.io/CornVision/`
 
 ------------------------------------------------------------------------
 
@@ -223,13 +261,30 @@ Thus, the revised models improved:
 
 ------------------------------------------------------------------------
 
-## Current Recommendation
+## Partner Handoff
 
-Based on the final comparisons in this repository, the recommended final model is:
+Use `output/final_model_files/` for downstream modeling inputs. Supporting files are organized into weather, metadata, and summary subfolders.
 
-### **Hybrid-plus LightGBM**
+For the revised Monthly GS modeling runs, use the cluster-generated output folders listed above.
 
--   Best validation RMSE
--   Best validation R²
--   Same general within-site differentiation pattern as the other revised models
--   Most complete final feature set tested
+------------------------------------------------------------------------
+
+## Large Files
+
+Large generated monthly-weather CSVs were excluded from GitHub due to file size limits and should be shared separately if needed.
+
+------------------------------------------------------------------------
+
+## Final Model Recommendation
+
+Based on the final comparisons in this repository, the selected final model is:
+
+### **Parent-only LightGBM**
+
+Why this model was chosen:
+
+-   Strong validation performance
+-   Lower complexity than hybrid-plus
+-   Improved within-site differentiation compared with the original Monthly GS model
+-   Simpler and more interpretable feature set
+-   Minimal practical loss relative to hybrid-plus despite nearly identical performance
